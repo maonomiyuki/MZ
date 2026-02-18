@@ -1,5 +1,6 @@
 const CHAR_ASPECT = 2.0;
 const FONT_SIZE = 12;
+const BASE_LINE_HEIGHT = 1.0;
 
 const DIRECTION_CHARSETS = {
   flat: "@%#*+=-:. ",
@@ -48,6 +49,10 @@ const elements = {
   microEdgeThresholdValue: document.getElementById("microEdgeThresholdValue"),
   microSplitThresholdInput: document.getElementById("microSplitThresholdInput"),
   microSplitThresholdValue: document.getElementById("microSplitThresholdValue"),
+  microLetterSpacingInput: document.getElementById("microLetterSpacingInput"),
+  microLetterSpacingValue: document.getElementById("microLetterSpacingValue"),
+  microLineSpacingInput: document.getElementById("microLineSpacingInput"),
+  microLineSpacingValue: document.getElementById("microLineSpacingValue"),
   canvas: document.getElementById("previewCanvas"),
   saveBtn: document.getElementById("saveBtn"),
   copyBtn: document.getElementById("copyBtn"),
@@ -96,11 +101,16 @@ function classifyDirection(dx, dy, threshold) {
 function renderGridToCanvas(grid, options) {
   const rows = grid.length;
   const cols = rows > 0 ? grid[0].length : options.cols;
-  const cellW = FONT_SIZE;
-  const cellH = FONT_SIZE * CHAR_ASPECT;
+  const letterSpacing = options.letterSpacing ?? 1;
+  const lineSpacing = options.lineSpacing ?? 1;
 
-  elements.canvas.width = cols * cellW;
-  elements.canvas.height = rows * cellH;
+  ctx.font = `${FONT_SIZE}px monospace`;
+  const measuredWidth = ctx.measureText("█").width || ctx.measureText("M").width || FONT_SIZE;
+  const cellW = measuredWidth * letterSpacing;
+  const cellH = FONT_SIZE * BASE_LINE_HEIGHT * lineSpacing;
+
+  elements.canvas.width = Math.max(1, Math.ceil(cols * cellW));
+  elements.canvas.height = Math.max(1, Math.ceil(rows * cellH));
 
   ctx.imageSmoothingEnabled = false;
   ctx.fillStyle = options.background;
@@ -196,7 +206,14 @@ function convertImageToGridTextMode(image, cols, contrast, threshold, ditherEnab
     }
   }
 
-  return { grid, background: PALETTES[elements.paletteSelect.value].background, foreground: PALETTES[elements.paletteSelect.value].foreground, cols };
+  return {
+    grid,
+    background: PALETTES[elements.paletteSelect.value].background,
+    foreground: PALETTES[elements.paletteSelect.value].foreground,
+    cols,
+    letterSpacing: 1,
+    lineSpacing: 1,
+  };
 }
 
 function rgbToHsl(r, g, b) {
@@ -463,7 +480,15 @@ function convertImageToGridMicro80(image, options) {
 
   const background = options.colorMode === "DIGITAL_8" ? "#000000" : options.colorMode === "GREEN_1" ? MICRO80.green.background : MICRO80.mono.background;
 
-  return { grid, colorGrid, background, foreground: null, cols };
+  return {
+    grid,
+    colorGrid,
+    background,
+    foreground: null,
+    cols,
+    letterSpacing: options.letterSpacing,
+    lineSpacing: options.lineSpacing,
+  };
 }
 
 function updateModeVisibility() {
@@ -497,6 +522,8 @@ function refresh() {
       ditherEnabled: elements.microDitherInput.checked,
       edgeThreshold: Number(elements.microEdgeThresholdInput.value),
       splitThreshold: Number(elements.microSplitThresholdInput.value),
+      letterSpacing: Number(elements.microLetterSpacingInput.value),
+      lineSpacing: Number(elements.microLineSpacingInput.value),
     });
   } else {
     result = convertImageToGridTextMode(
@@ -514,6 +541,8 @@ function refresh() {
     foreground: result.foreground,
     colorGrid: result.colorGrid,
     cols: result.cols,
+    letterSpacing: result.letterSpacing,
+    lineSpacing: result.lineSpacing,
   });
   elements.textOutput.textContent = gridToText(result.grid);
   elements.saveBtn.disabled = false;
@@ -583,6 +612,14 @@ elements.microEdgeThresholdInput.addEventListener("input", () => {
 });
 elements.microSplitThresholdInput.addEventListener("input", () => {
   elements.microSplitThresholdValue.value = elements.microSplitThresholdInput.value;
+  refresh();
+});
+elements.microLetterSpacingInput.addEventListener("input", () => {
+  elements.microLetterSpacingValue.value = Number(elements.microLetterSpacingInput.value).toFixed(2);
+  refresh();
+});
+elements.microLineSpacingInput.addEventListener("input", () => {
+  elements.microLineSpacingValue.value = Number(elements.microLineSpacingInput.value).toFixed(2);
   refresh();
 });
 
