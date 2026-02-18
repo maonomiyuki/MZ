@@ -1,10 +1,11 @@
 const CHAR_ASPECT = 2.0;
 const FONT_SIZE = 12;
 
-const CHARSETS = {
-  A: "@%#*+=-:. ",
-  B: "█▓▒░ ",
-  C: "■●◆▲*+=-:. ",
+const DIRECTION_CHARSETS = {
+  flat: "@%#*+=-:. ",
+  horizontal: "═─━=~",
+  vertical: "║│┃I!",
+  diagonal: "/\\X*+",
 };
 
 const PALETTES = {
@@ -17,7 +18,11 @@ const elements = {
   imageInput: document.getElementById("imageInput"),
   colsInput: document.getElementById("colsInput"),
   colsValue: document.getElementById("colsValue"),
-  charsetSelect: document.getElementById("charsetSelect"),
+  contrastInput: document.getElementById("contrastInput"),
+  contrastValue: document.getElementById("contrastValue"),
+  thresholdInput: document.getElementById("thresholdInput"),
+  thresholdValue: document.getElementById("thresholdValue"),
+  ditherInput: document.getElementById("ditherInput"),
   paletteSelect: document.getElementById("paletteSelect"),
   canvas: document.getElementById("previewCanvas"),
   saveBtn: document.getElementById("saveBtn"),
@@ -48,6 +53,22 @@ function toTimestamp() {
   return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
 }
 
+function classifyDirection(dx, dy, threshold) {
+  const magnitude = Math.sqrt(dx * dx + dy * dy);
+  if (magnitude < threshold) {
+    return "flat";
+  }
+
+  const angle = Math.abs((Math.atan2(dy, dx) * 180) / Math.PI);
+  if (angle < 22.5 || angle >= 157.5) {
+    return "horizontal";
+  }
+  if (angle >= 67.5 && angle < 112.5) {
+    return "vertical";
+  }
+  return "diagonal";
+}
+
 function renderGridToCanvas(grid, palette) {
   const rows = grid.length;
   const cols = rows > 0 ? grid[0].length : Number(elements.colsInput.value);
@@ -75,16 +96,14 @@ function renderGridToCanvas(grid, palette) {
   }
 }
 
-function convertImageToGrid(image, cols, charset) {
-  const rows = Math.max(1, Math.round((image.height / image.width) * cols / CHAR_ASPECT));
-
+function buildLumaAndDirectionMaps(image, cols, rows, contrast, threshold) {
   sampleCanvas.width = cols;
   sampleCanvas.height = rows;
   sampleCtx.clearRect(0, 0, cols, rows);
   sampleCtx.drawImage(image, 0, 0, cols, rows);
 
   const { data } = sampleCtx.getImageData(0, 0, cols, rows);
-  const grid = Array.from({ length: rows }, () => new Array(cols));
+  const lumaMap = Array.from({ length: rows }, () => new Array(cols));
 
   for (let y = 0; y < rows; y += 1) {
     for (let x = 0; x < cols; x += 1) {
@@ -92,10 +111,63 @@ function convertImageToGrid(image, cols, charset) {
       const r = data[offset];
       const g = data[offset + 1];
       const b = data[offset + 2];
-      const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-      const tone = 1 - luma / 255;
-      const index = clamp(Math.floor(tone * (charset.length - 1)), 0, charset.length - 1);
+      const lumaBase = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      const lumaContrast = (lumaBase - 128) * contrast + 128;
+      lumaMap[y][x] = clamp(lumaContrast, 0, 255);
+    }
+  }
+
+  const directionMap = Array.from({ length: rows }, () => new Array(cols));
+  for (let y = 0; y < rows; y += 1) {
+    for (let x = 0; x < cols; x += 1) {
+      const left = lumaMap[y][Math.max(0, x - 1)];
+      const right = lumaMap[y][Math.min(cols - 1, x + 1)];
+      const up = lumaMap[Math.max(0, y - 1)][x];
+      const down = lumaMap[Math.min(rows - 1, y + 1)][x];
+      const dx = right - left;
+      const dy = down - up;
+      directionMap[y][x] = classifyDirection(dx, dy, threshold);
+    }
+  }
+
+  return { lumaMap, directionMap };
+}
+
+function convertImageToGrid(image, cols, contrast, threshold, ditherEnabled) {
+  const rows = Math.max(1, Math.round((image.height / image.width) * cols / CHAR_ASPECT));
+  const { lumaMap, directionMap } = buildLumaAndDirectionMaps(image, cols, rows, contrast, threshold);
+
+  const grid = Array.from({ length: rows }, () => new Array(cols));
+  const toneBuffer = lumaMap.map((row) => row.map((luma) => 1 - luma / 255));
+
+  for (let y = 0; y < rows; y += 1) {
+    for (let x = 0; x < cols; x += 1) {
+      const direction = directionMap[y][x];
+      const charset = DIRECTION_CHARSETS[direction];
+      const tone = clamp(toneBuffer[y][x], 0, 1);
+      const maxIndex = charset.length - 1;
+      const index = clamp(Math.floor(tone * maxIndex), 0, maxIndex);
       grid[y][x] = charset[index];
+
+      if (!ditherEnabled || maxIndex === 0) {
+        continue;
+      }
+
+      const representedTone = index / maxIndex;
+      const error = tone - representedTone;
+
+      if (x + 1 < cols) {
+        toneBuffer[y][x + 1] += error * (7 / 16);
+      }
+      if (y + 1 < rows && x - 1 >= 0) {
+        toneBuffer[y + 1][x - 1] += error * (3 / 16);
+      }
+      if (y + 1 < rows) {
+        toneBuffer[y + 1][x] += error * (5 / 16);
+      }
+      if (y + 1 < rows && x + 1 < cols) {
+        toneBuffer[y + 1][x + 1] += error * (1 / 16);
+      }
     }
   }
 
@@ -115,10 +187,13 @@ function refresh() {
   }
 
   const cols = Number(elements.colsInput.value);
-  const charset = CHARSETS[elements.charsetSelect.value];
-  const grid = convertImageToGrid(state.image, cols, charset);
+  const contrast = Number(elements.contrastInput.value);
+  const threshold = Number(elements.thresholdInput.value);
+  const ditherEnabled = elements.ditherInput.checked;
 
+  const grid = convertImageToGrid(state.image, cols, contrast, threshold, ditherEnabled);
   state.grid = grid;
+
   renderGridToCanvas(grid, palette);
   elements.textOutput.textContent = gridToText(grid);
   elements.saveBtn.disabled = false;
@@ -157,7 +232,17 @@ elements.colsInput.addEventListener("input", () => {
   refresh();
 });
 
-elements.charsetSelect.addEventListener("change", refresh);
+elements.contrastInput.addEventListener("input", () => {
+  elements.contrastValue.value = Number(elements.contrastInput.value).toFixed(1);
+  refresh();
+});
+
+elements.thresholdInput.addEventListener("input", () => {
+  elements.thresholdValue.value = elements.thresholdInput.value;
+  refresh();
+});
+
+elements.ditherInput.addEventListener("change", refresh);
 elements.paletteSelect.addEventListener("change", refresh);
 
 elements.saveBtn.addEventListener("click", () => {

@@ -33,11 +33,21 @@ h1 {
   gap: 0.4rem;
 }
 
+.checkbox-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
 select,
 input[type="file"],
 button,
 input[type="range"] {
   width: 100%;
+}
+
+.checkbox-row input[type="checkbox"] {
+  width: auto;
 }
 
 .preview {
