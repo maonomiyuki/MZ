@@ -1,4 +1,3 @@
-const CHAR_ASPECT = 2.0;
 const FONT_SIZE = 12;
 const BASE_LINE_HEIGHT = 1.0;
 
@@ -98,16 +97,22 @@ function classifyDirection(dx, dy, threshold) {
   return "diagonal";
 }
 
+
+function getCanvasCellMetrics(letterSpacing = 1, lineSpacing = 1) {
+  ctx.font = `${FONT_SIZE}px monospace`;
+  const measuredWidth = ctx.measureText("█").width || ctx.measureText("M").width || FONT_SIZE;
+  const cellW = measuredWidth * letterSpacing;
+  const cellH = FONT_SIZE * BASE_LINE_HEIGHT * lineSpacing;
+  const charAspectUsed = cellH / Math.max(cellW, 0.0001);
+  return { cellW, cellH, charAspectUsed };
+}
+
 function renderGridToCanvas(grid, options) {
   const rows = grid.length;
   const cols = rows > 0 ? grid[0].length : options.cols;
   const letterSpacing = options.letterSpacing ?? 1;
   const lineSpacing = options.lineSpacing ?? 1;
-
-  ctx.font = `${FONT_SIZE}px monospace`;
-  const measuredWidth = ctx.measureText("█").width || ctx.measureText("M").width || FONT_SIZE;
-  const cellW = measuredWidth * letterSpacing;
-  const cellH = FONT_SIZE * BASE_LINE_HEIGHT * lineSpacing;
+  const { cellW, cellH } = getCanvasCellMetrics(letterSpacing, lineSpacing);
 
   elements.canvas.width = Math.max(1, Math.ceil(cols * cellW));
   elements.canvas.height = Math.max(1, Math.ceil(rows * cellH));
@@ -169,7 +174,8 @@ function buildLumaAndDirectionMaps(image, cols, rows, contrast, threshold) {
 }
 
 function convertImageToGridTextMode(image, cols, contrast, threshold, ditherEnabled) {
-  const rows = Math.max(1, Math.round((image.height / image.width) * cols / CHAR_ASPECT));
+  const { charAspectUsed } = getCanvasCellMetrics(1, 1);
+  const rows = Math.max(1, Math.round((image.height / image.width) * cols / charAspectUsed));
   const { lumaMap, directionMap } = buildLumaAndDirectionMaps(image, cols, rows, contrast, threshold);
 
   const grid = Array.from({ length: rows }, () => new Array(cols));
@@ -351,7 +357,8 @@ function pickByTone(chars, tone) {
 
 function convertImageToGridMicro80(image, options) {
   const cols = options.cols;
-  const rows = Math.max(1, Math.round((image.height / image.width) * cols / CHAR_ASPECT));
+  const { charAspectUsed } = getCanvasCellMetrics(options.letterSpacing, options.lineSpacing);
+  const rows = Math.max(1, Math.round((image.height / image.width) * cols / charAspectUsed));
   const cellPx = options.cellPx;
   const analyzed = preprocessForMicro80(image, cols, rows, cellPx, options.colorMode);
 
