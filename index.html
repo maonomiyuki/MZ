@@ -16,33 +16,83 @@
       </label>
 
       <label class="control">
-        <span>横文字数: <output id="colsValue">60</output></span>
-        <input id="colsInput" type="range" min="20" max="120" value="60" />
-      </label>
-
-      <label class="control">
-        <span>コントラスト: <output id="contrastValue">1.2</output></span>
-        <input id="contrastInput" type="range" min="1" max="2" step="0.1" value="1.2" />
-      </label>
-
-      <label class="control">
-        <span>エッジ閾値: <output id="thresholdValue">15</output></span>
-        <input id="thresholdInput" type="range" min="5" max="30" step="1" value="15" />
-      </label>
-
-      <label class="control checkbox-row">
-        <span>ディザ（誤差拡散）</span>
-        <input id="ditherInput" type="checkbox" checked />
-      </label>
-
-      <label class="control">
-        <span>色プリセット</span>
-        <select id="paletteSelect">
-          <option value="Green">Green</option>
-          <option value="Amber">Amber</option>
-          <option value="Mono">Mono</option>
+        <span>モード</span>
+        <select id="modeSelect">
+          <option value="text">Text</option>
+          <option value="micro80">Micro 80</option>
         </select>
       </label>
+
+      <section id="textControls" class="controls-group">
+        <label class="control">
+          <span>横文字数: <output id="colsValue">60</output></span>
+          <input id="colsInput" type="range" min="20" max="120" value="60" />
+        </label>
+
+        <label class="control">
+          <span>コントラスト: <output id="contrastValue">1.2</output></span>
+          <input id="contrastInput" type="range" min="1" max="2" step="0.1" value="1.2" />
+        </label>
+
+        <label class="control">
+          <span>エッジ閾値: <output id="thresholdValue">15</output></span>
+          <input id="thresholdInput" type="range" min="5" max="30" step="1" value="15" />
+        </label>
+
+        <label class="control checkbox-row">
+          <span>ディザ（誤差拡散）</span>
+          <input id="ditherInput" type="checkbox" checked />
+        </label>
+
+        <label class="control">
+          <span>色プリセット</span>
+          <select id="paletteSelect">
+            <option value="Green">Green</option>
+            <option value="Amber">Amber</option>
+            <option value="Mono">Mono</option>
+          </select>
+        </label>
+      </section>
+
+      <section id="micro80Controls" class="controls-group hidden">
+        <label class="control">
+          <span>色モード</span>
+          <select id="microColorModeSelect">
+            <option value="DIGITAL_8">DIGITAL_8</option>
+            <option value="GREEN_1">GREEN_1</option>
+            <option value="MONO_1">MONO_1</option>
+          </select>
+        </label>
+
+        <label class="control">
+          <span>横セル数: <output id="microColsValue">40</output></span>
+          <input id="microColsInput" type="range" min="20" max="120" value="40" />
+        </label>
+
+        <label class="control">
+          <span>cellPx</span>
+          <select id="cellPxSelect">
+            <option value="4">4</option>
+            <option value="6" selected>6</option>
+            <option value="8">8</option>
+          </select>
+        </label>
+
+        <label class="control checkbox-row">
+          <span>ディザ（誤差拡散）</span>
+          <input id="microDitherInput" type="checkbox" checked />
+        </label>
+
+        <label class="control">
+          <span>エッジ閾値: <output id="microEdgeThresholdValue">15</output></span>
+          <input id="microEdgeThresholdInput" type="range" min="5" max="30" value="15" />
+        </label>
+
+        <label class="control">
+          <span>分割閾値: <output id="microSplitThresholdValue">20</output></span>
+          <input id="microSplitThresholdInput" type="range" min="10" max="40" value="20" />
+        </label>
+      </section>
 
       <section class="preview">
         <canvas id="previewCanvas" aria-label="text-art-preview"></canvas>

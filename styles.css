@@ -33,6 +33,16 @@ h1 {
   gap: 0.4rem;
 }
 
+.controls-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.hidden {
+  display: none;
+}
+
 .checkbox-row {
   flex-direction: row;
   align-items: center;
